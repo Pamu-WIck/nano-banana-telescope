@@ -29,11 +29,13 @@ function App() {
     lastProcessedZoom: 0
   })
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
   const zoomContainerRef = useRef<HTMLDivElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
   const enhancementTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
   
   const { getCachedImage, setCachedImage, findSimilarCachedImage, clearCache } = useImageCache(20)
 
@@ -69,27 +71,67 @@ function App() {
     setCurrentHistoryIndex(imageHistory.length)
   }, [imageHistory.length])
 
+  // Lens transition: immediately change image at high zoom, then zoom out
+  const performLensTransition = useCallback(async (newIndex: number, direction: 'next' | 'previous') => {
+    if (!wrapperRef.current || !imageRef.current) return
+    
+    setIsTransitioning(true)
+    
+    // Add transition classes
+    wrapperRef.current.classList.add('lens-transition')
+    imageRef.current.classList.add('transitioning')
+    zoomContainerRef.current?.classList.add('lens-effect', 'active')
+    
+    // STEP 1: Immediately switch to new image and set high zoom
+    const startZoom = direction === 'next' ? 4.0 : 3.5 // Start zoomed in
+    setCurrentHistoryIndex(newIndex)
+    setPanPosition({ x: 0, y: 0 })
+    setZoomLevel(startZoom)
+    
+    // Brief pause to see the zoomed image
+    await new Promise(resolve => setTimeout(resolve, 200))
+    
+    // STEP 2: Smoothly zoom out to normal view
+    const targetZoom = 1.0
+    const steps = 35
+    const zoomStep = (targetZoom - startZoom) / steps
+    
+    for (let i = 0; i < steps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 20))
+      setZoomLevel(prev => {
+        const newZoom = prev + zoomStep
+        return Math.max(targetZoom, newZoom)
+      })
+    }
+    
+    // Ensure we end exactly at target zoom
+    setZoomLevel(targetZoom)
+    
+    // Clean up transition classes
+    setTimeout(() => {
+      wrapperRef.current?.classList.remove('lens-transition')
+      imageRef.current?.classList.remove('transitioning')
+      zoomContainerRef.current?.classList.remove('lens-effect', 'active')
+      setIsTransitioning(false)
+    }, 200)
+  }, [])
+  
   // Navigation functions
   const goToPreviousImage = useCallback(() => {
-    if (currentHistoryIndex > 0) {
-      setCurrentHistoryIndex(prev => prev - 1)
-      setZoomLevel(1)
-      setPanPosition({ x: 0, y: 0 })
-    } else if (imageHistory.length > 0) {
-      // Go to original image
-      setCurrentHistoryIndex(-1)
-      setZoomLevel(1)
-      setPanPosition({ x: 0, y: 0 })
-    }
-  }, [currentHistoryIndex, imageHistory.length])
+    if (isTransitioning) return
+    
+    const targetIndex = currentHistoryIndex > 0 ? currentHistoryIndex - 1 : -1
+    if (targetIndex === currentHistoryIndex) return
+    
+    performLensTransition(targetIndex, 'previous')
+  }, [currentHistoryIndex, imageHistory.length, isTransitioning, performLensTransition])
 
   const goToNextImage = useCallback(() => {
-    if (currentHistoryIndex < imageHistory.length - 1) {
-      setCurrentHistoryIndex(prev => prev + 1)
-      setZoomLevel(1)
-      setPanPosition({ x: 0, y: 0 })
-    }
-  }, [currentHistoryIndex, imageHistory.length])
+    if (isTransitioning || currentHistoryIndex >= imageHistory.length - 1) return
+    
+    const targetIndex = currentHistoryIndex + 1
+    performLensTransition(targetIndex, 'next')
+  }, [currentHistoryIndex, imageHistory.length, isTransitioning, performLensTransition])
 
   const handleImageUpload = (file: File) => {
     const reader = new FileReader()
@@ -447,14 +489,14 @@ function App() {
               <div className="zoom-header">
                 <h3>Telescope Viewfinder</h3>
                 <div className="zoom-controls">
-                  <button onClick={handleZoomOut} className="zoom-button" disabled={zoomLevel <= 0.1}>
+                  <button onClick={handleZoomOut} className="zoom-button" disabled={zoomLevel <= 0.1 || isTransitioning}>
                     🔍-
                   </button>
                   <span className="zoom-level">{Math.round(zoomLevel * 100)}%</span>
-                  <button onClick={handleZoomIn} className="zoom-button" disabled={zoomLevel >= 10}>
+                  <button onClick={handleZoomIn} className="zoom-button" disabled={zoomLevel >= 10 || isTransitioning}>
                     🔍+
                   </button>
-                  <button onClick={handleResetZoom} className="reset-button">
+                  <button onClick={handleResetZoom} className="reset-button" disabled={isTransitioning}>
                     Reset
                   </button>
                 </div>
@@ -464,8 +506,8 @@ function App() {
                     <button 
                       onClick={goToPreviousImage} 
                       className="history-button" 
-                      disabled={currentHistoryIndex <= -1}
-                      title="Go to previous image"
+                      disabled={currentHistoryIndex <= -1 || isTransitioning}
+                      title="Go to previous focus layer"
                     >
                       ← Previous
                     </button>
@@ -476,8 +518,8 @@ function App() {
                     <button 
                       onClick={goToNextImage} 
                       className="history-button" 
-                      disabled={currentHistoryIndex >= imageHistory.length - 1}
-                      title="Go to next image"
+                      disabled={currentHistoryIndex >= imageHistory.length - 1 || isTransitioning}
+                      title="Go to next focus layer"
                     >
                       Next →
                     </button>
@@ -496,6 +538,7 @@ function App() {
                 style={{ position: 'relative' }}
               >
                 <div 
+                  ref={wrapperRef}
                   className="zoom-image-wrapper"
                   style={{
                     transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${panPosition.y / zoomLevel}px)`,
