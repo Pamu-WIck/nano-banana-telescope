@@ -71,50 +71,77 @@ function App() {
     setCurrentHistoryIndex(imageHistory.length)
   }, [imageHistory.length])
 
-  // Lens transition: immediately change image at high zoom, then zoom out
+  // Image transition with zoom effect
   const performLensTransition = useCallback(async (newIndex: number, direction: 'next' | 'previous') => {
     if (!wrapperRef.current || !imageRef.current) return
     
     setIsTransitioning(true)
     
-    // Add transition classes
-    wrapperRef.current.classList.add('lens-transition')
-    imageRef.current.classList.add('transitioning')
-    zoomContainerRef.current?.classList.add('lens-effect', 'active')
+    // Add transition classes for smooth animation
+    wrapperRef.current.classList.add('smooth-zoom')
     
-    // STEP 1: Immediately switch to new image and set high zoom
-    const startZoom = direction === 'next' ? 4.0 : 3.5 // Start zoomed in
-    setCurrentHistoryIndex(newIndex)
-    setPanPosition({ x: 0, y: 0 })
-    setZoomLevel(startZoom)
-    
-    // Brief pause to see the zoomed image
-    await new Promise(resolve => setTimeout(resolve, 200))
-    
-    // STEP 2: Smoothly zoom out to normal view
-    const targetZoom = 1.0
-    const steps = 35
-    const zoomStep = (targetZoom - startZoom) / steps
-    
-    for (let i = 0; i < steps; i++) {
-      await new Promise(resolve => setTimeout(resolve, 20))
-      setZoomLevel(prev => {
-        const newZoom = prev + zoomStep
-        return Math.max(targetZoom, newZoom)
-      })
+    if (direction === 'previous') {
+      // PREVIOUS: Instantly change to previous image at 300% zoom, then animate zoom out to 100%
+      setCurrentHistoryIndex(newIndex)
+      setPanPosition({ x: 0, y: 0 })
+      setZoomLevel(3.0) // Start at 300% zoom instantly
+      
+      // Small delay to ensure image loads
+      await new Promise(resolve => setTimeout(resolve, 50))
+      
+      // Animate zoom out to 100%
+      const steps = 30
+      const startZoom = 3.0
+      const targetZoom = 1.0
+      const zoomStep = (targetZoom - startZoom) / steps
+      
+      for (let i = 0; i < steps; i++) {
+        await new Promise(resolve => setTimeout(resolve, 20))
+        setZoomLevel(prev => {
+          const newZoom = prev + zoomStep
+          return Math.max(targetZoom, newZoom)
+        })
+      }
+      
+      setZoomLevel(targetZoom)
+      
+    } else if (direction === 'next') {
+      // NEXT: Animate current image zoom in to 300%, then switch to next image at 100%
+      setPanPosition({ x: 0, y: 0 })
+      
+      // Animate zoom in to 300%
+      const steps = 30
+      const startZoom = zoomLevel
+      const targetZoom = 3.0
+      const zoomStep = (targetZoom - startZoom) / steps
+      
+      for (let i = 0; i < steps; i++) {
+        await new Promise(resolve => setTimeout(resolve, 20))
+        setZoomLevel(prev => {
+          const newZoom = prev + zoomStep
+          return Math.min(targetZoom, newZoom)
+        })
+      }
+      
+      setZoomLevel(targetZoom)
+      
+      // Brief pause at maximum zoom
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      // Remove smooth zoom class before switching for instant change
+      wrapperRef.current?.classList.remove('smooth-zoom')
+      
+      // Switch to next image at 100% zoom (stable, instant change)
+      setCurrentHistoryIndex(newIndex)
+      setZoomLevel(1.0)
     }
-    
-    // Ensure we end exactly at target zoom
-    setZoomLevel(targetZoom)
     
     // Clean up transition classes
     setTimeout(() => {
-      wrapperRef.current?.classList.remove('lens-transition')
-      imageRef.current?.classList.remove('transitioning')
-      zoomContainerRef.current?.classList.remove('lens-effect', 'active')
+      wrapperRef.current?.classList.remove('smooth-zoom')
       setIsTransitioning(false)
     }, 200)
-  }, [])
+  }, [zoomLevel])
   
   // Navigation functions
   const goToPreviousImage = useCallback(() => {

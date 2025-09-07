@@ -270,23 +270,6 @@
   justify-content: center;
 }
 
-.zoom-container.lens-effect::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at center, transparent 40%, rgba(0, 0, 0, 0.1) 100%);
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0;
-  transition: opacity 0.6s ease-in-out;
-}
-
-.zoom-container.lens-effect.active::before {
-  opacity: 1;
-}
 
 .zoom-image-wrapper {
   transform-origin: center center;
@@ -300,9 +283,6 @@
   transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.zoom-image-wrapper.lens-transition {
-  transition: transform 1.2s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.4s ease-in-out;
-}
 
 .zoom-image {
   max-width: 100%;
@@ -312,9 +292,6 @@
   transition: filter 0.3s ease-in-out;
 }
 
-.zoom-image.transitioning {
-  filter: blur(1px);
-}
 
 .zoom-image.blurred {
   filter: blur(4px);
