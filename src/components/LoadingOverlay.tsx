@@ -11,7 +11,7 @@ interface LoadingOverlayProps {
 export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   isVisible,
   progress,
-  message = 'Enhancing image with AI...',
+  message = 'Adjusting telescope lenses...',
   onCancel
 }) => {
   if (!isVisible) return null;
@@ -30,7 +30,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
         
         <div className="loading-text">
           <h3>{message}</h3>
-          <p>This may take a few moments...</p>
+          <p>Calibrating deep space optics...</p>
         </div>
         
         <div className="progress-container">
@@ -45,7 +45,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
         
         {onCancel && (
           <button className="cancel-button" onClick={onCancel}>
-            Cancel Enhancement
+            Cancel Focusing
           </button>
         )}
       </div>

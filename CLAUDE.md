@@ -122,3 +122,4 @@ The Gemini API key is configured via environment variables:
 - **Model Errors**: Check console logs for detailed API response structure during debugging
 - **History Navigation Issues**: Check that `currentHistoryIndex` is properly managed (-1 for original)
 - **Zoom Reset Problems**: Verify `setZoomLevel(1)` is called after enhancement
+- add updates to memery

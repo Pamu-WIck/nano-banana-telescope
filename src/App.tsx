@@ -386,8 +386,8 @@ function App() {
     <div className="app">
       {!originalImageSrc ? (
         <div className="home-page">
-          <h1 className="main-title">Zoom endlessly in to your images</h1>
-          <p className="subtitle">Upload an image to start exploring with infinite zoom and AI analysis</p>
+          <h1 className="main-title">Explore the infinite depths of your images</h1>
+          <p className="subtitle">Upload an image to peer through the telescope's powerful optical layers</p>
           
           <div 
             className={`upload-zone ${isDragOver ? 'drag-over' : ''}`}
@@ -445,7 +445,7 @@ function App() {
           <div className="main-content">
             <div className="zoom-section">
               <div className="zoom-header">
-                <h3>Zoom Explorer</h3>
+                <h3>Telescope Viewfinder</h3>
                 <div className="zoom-controls">
                   <button onClick={handleZoomOut} className="zoom-button" disabled={zoomLevel <= 0.1}>
                     🔍-
@@ -470,8 +470,8 @@ function App() {
                       ← Previous
                     </button>
                     <span className="history-info">
-                      {currentHistoryIndex === -1 ? 'Original' : `Enhanced ${currentHistoryIndex + 1}`}
-                      {imageHistory.length > 0 && ` / ${imageHistory.length} levels`}
+                      {currentHistoryIndex === -1 ? 'Original View' : `Focus Layer ${currentHistoryIndex + 1}`}
+                      {imageHistory.length > 0 && ` / ${imageHistory.length} depth layers`}
                     </span>
                     <button 
                       onClick={goToNextImage} 
@@ -513,21 +513,21 @@ function App() {
                 <LoadingOverlay
                   isVisible={enhancementState.isProcessing}
                   progress={enhancementState.progress}
-                  message="Enhancing image with AI..."
+                  message="Adjusting telescope lenses..."
                   onCancel={handleCancelEnhancement}
                 />
               </div>
               
               <div className="zoom-info">
-                <p>Use mouse wheel to zoom, drag to pan when zoomed in</p>
+                <p>Scroll to adjust magnification, drag to explore when zoomed</p>
                 {zoomLevel > 3.0 && (
                   <p className="enhancement-info">
-                    🤖 AI enhancement active at {Math.round(zoomLevel * 100)}% zoom
+                    🔭 Focusing deep space optics at {Math.round(zoomLevel * 100)}% magnification
                   </p>
                 )}
                 {enhancementState.error && (
                   <p className="error-info">
-                    ⚠️ Enhancement failed: {enhancementState.error}
+                    ⚠️ Lens calibration failed: {enhancementState.error}
                   </p>
                 )}
               </div>
