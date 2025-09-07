@@ -82,12 +82,20 @@ function App() {
     
     if (direction === 'previous') {
       // PREVIOUS: Instantly change to previous image at 300% zoom, then animate zoom out to 100%
+      
+      // Remove smooth zoom class for instant zoom change
+      wrapperRef.current?.classList.remove('smooth-zoom')
+      
+      // Switch to previous image and instantly set to 300% zoom
       setCurrentHistoryIndex(newIndex)
       setPanPosition({ x: 0, y: 0 })
       setZoomLevel(3.0) // Start at 300% zoom instantly
       
-      // Small delay to ensure image loads
+      // Small delay to ensure image loads and zoom is applied
       await new Promise(resolve => setTimeout(resolve, 50))
+      
+      // Add smooth zoom class back for animation
+      wrapperRef.current?.classList.add('smooth-zoom')
       
       // Animate zoom out to 100%
       const steps = 30
