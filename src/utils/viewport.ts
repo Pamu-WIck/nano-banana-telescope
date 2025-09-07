@@ -53,15 +53,44 @@ export const cropImageFromCanvas = async (
         return;
       }
       
-      // Set canvas size to crop dimensions
-      canvas.width = cropArea.width;
-      canvas.height = cropArea.height;
+      // Calculate 4:3 aspect ratio dimensions
+      const aspectRatio = 4 / 3;
+      let finalWidth = cropArea.width;
+      let finalHeight = cropArea.height;
+      let sourceX = cropArea.x;
+      let sourceY = cropArea.y;
+      let sourceWidth = cropArea.width;
+      let sourceHeight = cropArea.height;
       
-      // Draw the cropped portion
+      const currentRatio = cropArea.width / cropArea.height;
+      
+      if (currentRatio > aspectRatio) {
+        // Image is wider than 4:3, adjust width or crop horizontally
+        finalWidth = Math.round(cropArea.height * aspectRatio);
+        finalHeight = cropArea.height;
+        // Center the crop horizontally
+        const widthDiff = cropArea.width - finalWidth;
+        sourceX = cropArea.x + Math.round(widthDiff / 2);
+        sourceWidth = finalWidth;
+      } else if (currentRatio < aspectRatio) {
+        // Image is taller than 4:3, adjust height or crop vertically
+        finalWidth = cropArea.width;
+        finalHeight = Math.round(cropArea.width / aspectRatio);
+        // Center the crop vertically
+        const heightDiff = cropArea.height - finalHeight;
+        sourceY = cropArea.y + Math.round(heightDiff / 2);
+        sourceHeight = finalHeight;
+      }
+      
+      // Set canvas size to 4:3 dimensions
+      canvas.width = finalWidth;
+      canvas.height = finalHeight;
+      
+      // Draw the cropped portion with 4:3 aspect ratio
       ctx.drawImage(
         img,
-        cropArea.x, cropArea.y, cropArea.width, cropArea.height,
-        0, 0, cropArea.width, cropArea.height
+        sourceX, sourceY, sourceWidth, sourceHeight,
+        0, 0, finalWidth, finalHeight
       );
       
       // Convert to base64

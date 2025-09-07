@@ -257,7 +257,9 @@
 
 .zoom-container {
   width: 100%;
-  height: 500px;
+  max-width: 800px;
+  aspect-ratio: 4 / 3;
+  margin: 0 auto;
   border: 2px solid #334155;
   border-radius: 12px;
   overflow: hidden;
@@ -368,7 +370,8 @@
   }
   
   .zoom-container {
-    height: 300px;
+    max-width: 100%;
+    aspect-ratio: 4 / 3;
   }
   
   .zoom-header {

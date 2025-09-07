@@ -43,6 +43,21 @@ function App() {
     return imageHistory[currentHistoryIndex]?.image || originalImageSrc
   }, [imageHistory, currentHistoryIndex, originalImageSrc])
 
+  // Calculate zoom level to fit image to container height
+  const calculateFitToHeightZoom = useCallback(() => {
+    if (!imageRef.current || !zoomContainerRef.current) return 1
+    
+    const containerHeight = zoomContainerRef.current.clientHeight
+    const imageNaturalHeight = imageRef.current.naturalHeight
+    const imageDisplayHeight = imageRef.current.offsetHeight
+    
+    // Calculate zoom needed to fit height
+    const fitZoom = containerHeight / imageDisplayHeight
+    
+    // Clamp between min and max zoom levels
+    return Math.min(Math.max(fitZoom, 0.1), 10)
+  }, [])
+
   // Helper function to add new enhanced image to history
   const addToHistory = useCallback((enhancedImage: string) => {
     const newHistoryItem: ImageHistoryItem = {
@@ -276,11 +291,16 @@ function App() {
 
       setCachedImage(enhancedImage)
       
-      // Add enhanced image to history and reset zoom
+      // Add enhanced image to history and fit to height
       addToHistory(enhancedImageData)
       setCurrentDisplayImage(enhancedImageData)
-      setZoomLevel(1)
-      setPanPosition({ x: 0, y: 0 })
+      
+      // Wait for image to load then calculate fit-to-height zoom
+      setTimeout(() => {
+        const fitZoom = calculateFitToHeightZoom()
+        setZoomLevel(fitZoom)
+        setPanPosition({ x: 0, y: 0 })
+      }, 50)
       
       setEnhancementState({
         isProcessing: false,
@@ -300,7 +320,7 @@ function App() {
       })
       setCurrentRequestId(null)
     }
-  }, [getCurrentBaseImage, panPosition, currentDisplayImage, enhancementState.isProcessing, getCachedImage, findSimilarCachedImage, setCachedImage, addToHistory])
+  }, [getCurrentBaseImage, panPosition, currentDisplayImage, enhancementState.isProcessing, getCachedImage, findSimilarCachedImage, setCachedImage, addToHistory, calculateFitToHeightZoom])
 
   const handleZoomChange = useCallback((newZoomLevel: number) => {
     if (enhancementTimeoutRef.current) {
