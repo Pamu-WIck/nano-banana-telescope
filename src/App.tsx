@@ -428,7 +428,8 @@ function App() {
     <div className="app">
       {!originalImageSrc ? (
         <div className="home-page">
-          <h1 className="main-title">Explore the infinite depths of your images</h1>
+          <h1 className="app-title">🍌 Banana Scope 🔭</h1>
+          <h2 className="main-title">Explore the infinite depths of your images</h2>
           <p className="subtitle">Upload an image to peer through the telescope's powerful optical layers</p>
           
           <div 
@@ -457,7 +458,7 @@ function App() {
       ) : (
         <div className="image-view">
           <div className="header">
-            <h1>🍌 Nano Banana Telescope 🔭</h1>
+            <h1>🍌 Banana Scope 🔭</h1>
             <button 
               onClick={() => {
                 setOriginalImageSrc('')
