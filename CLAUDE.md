@@ -40,10 +40,12 @@ User Zoom > Debounced Check > Viewport Calculation > Cache Check > AI Enhancemen
 #### Key Technical Details
 
 **Gemini AI Integration**
-- Model: `gemini-2.0-flash-exp` 
+- Model: `gemini-2.5-flash-image-preview` 
+- Package: `@google/generative-ai` v0.24.1
 - Input: Base64-encoded PNG of cropped viewport
 - Prompt: Focuses on sharpening, texture detail, and realistic enhancement
 - Progress tracking with cancellation support
+- API Key: Configured via `VITE_GOOGLE_AI_API_KEY` environment variable
 
 **Caching Strategy**
 - Multi-level cache with viewport similarity matching
@@ -66,10 +68,21 @@ User Zoom > Debounced Check > Viewport Calculation > Cache Check > AI Enhancemen
 **Components**: `src/components/LoadingOverlay.tsx` - Loading UI with progress and cancellation
 
 ### API Key Management
-The Gemini API key is currently hardcoded in `geminiService.ts`. For production deployment, move to environment variables and implement secure key management.
+The Gemini API key is configured via environment variables:
+- **Development**: Set `VITE_GOOGLE_AI_API_KEY` in `.env` file
+- **Production**: Configure `VITE_GOOGLE_AI_API_KEY` in deployment environment
+- **Example**: See `.env.example` for proper format
+- API key obtained from https://ai.google.dev/
 
 ### Development Notes
 - Hot reload issues with TypeScript imports may require dev server restart
 - ESLint enforces React hooks exhaustive dependencies
 - All enhancement functions use `useCallback` for performance
 - Canvas operations require `crossOrigin: 'anonymous'` for external images
+- Vite automatically restarts when `.env` file changes
+- Environment variables must be prefixed with `VITE_` to be accessible in client code
+
+### Troubleshooting
+- **Enhancement Error "No image data found"**: Ensure correct Gemini model (`gemini-2.5-flash-image-preview`) and valid API key
+- **API Key Issues**: Verify `.env` file exists with `VITE_GOOGLE_AI_API_KEY=your_key_here`
+- **Model Errors**: Check console logs for detailed API response structure during debugging

@@ -6,8 +6,16 @@ import { geminiService } from './services/geminiService'
 import { shouldEnhanceImage, getVisibleImageBounds, generateCacheKey } from './utils/viewport'
 import type { EnhancedImage, EnhancementState } from './types/enhancement'
 
+interface ImageHistoryItem {
+  image: string
+  level: number
+  timestamp: number
+}
+
 function App() {
-  const [imageSrc, setImageSrc] = useState<string>('')
+  const [originalImageSrc, setOriginalImageSrc] = useState<string>('')
+  const [imageHistory, setImageHistory] = useState<ImageHistoryItem[]>([])
+  const [currentHistoryIndex, setCurrentHistoryIndex] = useState(0)
   const [isDragOver, setIsDragOver] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [panPosition, setPanPosition] = useState({ x: 0, y: 0 })
@@ -29,12 +37,55 @@ function App() {
   
   const { getCachedImage, setCachedImage, findSimilarCachedImage, clearCache } = useImageCache(20)
 
+  // Helper function to get current base image
+  const getCurrentBaseImage = useCallback(() => {
+    if (currentHistoryIndex === -1 || imageHistory.length === 0) return originalImageSrc
+    return imageHistory[currentHistoryIndex]?.image || originalImageSrc
+  }, [imageHistory, currentHistoryIndex, originalImageSrc])
+
+  // Helper function to add new enhanced image to history
+  const addToHistory = useCallback((enhancedImage: string) => {
+    const newHistoryItem: ImageHistoryItem = {
+      image: enhancedImage,
+      level: imageHistory.length + 1,
+      timestamp: Date.now()
+    }
+    setImageHistory(prev => [...prev, newHistoryItem])
+    setCurrentHistoryIndex(imageHistory.length)
+  }, [imageHistory.length])
+
+  // Navigation functions
+  const goToPreviousImage = useCallback(() => {
+    if (currentHistoryIndex > 0) {
+      setCurrentHistoryIndex(prev => prev - 1)
+      setZoomLevel(1)
+      setPanPosition({ x: 0, y: 0 })
+    } else if (imageHistory.length > 0) {
+      // Go to original image
+      setCurrentHistoryIndex(-1)
+      setZoomLevel(1)
+      setPanPosition({ x: 0, y: 0 })
+    }
+  }, [currentHistoryIndex, imageHistory.length])
+
+  const goToNextImage = useCallback(() => {
+    if (currentHistoryIndex < imageHistory.length - 1) {
+      setCurrentHistoryIndex(prev => prev + 1)
+      setZoomLevel(1)
+      setPanPosition({ x: 0, y: 0 })
+    }
+  }, [currentHistoryIndex, imageHistory.length])
+
   const handleImageUpload = (file: File) => {
     const reader = new FileReader()
     reader.addEventListener('load', () => {
       const newImageSrc = reader.result?.toString() || ''
-      setImageSrc(newImageSrc)
+      setOriginalImageSrc(newImageSrc)
       setCurrentDisplayImage(newImageSrc)
+      setImageHistory([])
+      setCurrentHistoryIndex(-1) // -1 means showing original image
+      setZoomLevel(1)
+      setPanPosition({ x: 0, y: 0 })
       clearCache()
       setEnhancementState({
         isProcessing: false,
@@ -99,7 +150,8 @@ function App() {
   const handleResetZoom = () => {
     setZoomLevel(1)
     setPanPosition({ x: 0, y: 0 })
-    setCurrentDisplayImage(imageSrc)
+    const currentBase = getCurrentBaseImage()
+    setCurrentDisplayImage(currentBase)
     if (currentRequestId) {
       geminiService.cancelRequest(currentRequestId)
       setCurrentRequestId(null)
@@ -139,9 +191,11 @@ function App() {
   }
 
   const checkAndEnhanceImage = useCallback(async (zoomLevel: number) => {
-    if (!shouldEnhanceImage(zoomLevel) || !imageSrc || !imageRef.current || !zoomContainerRef.current) {
-      if (zoomLevel <= 3.0 && currentDisplayImage !== imageSrc) {
-        setCurrentDisplayImage(imageSrc)
+    const currentBaseImage = getCurrentBaseImage()
+    
+    if (!shouldEnhanceImage(zoomLevel) || !currentBaseImage || !imageRef.current || !zoomContainerRef.current) {
+      if (zoomLevel <= 3.0 && currentDisplayImage !== currentBaseImage) {
+        setCurrentDisplayImage(currentBaseImage)
       }
       return
     }
@@ -154,7 +208,7 @@ function App() {
         panPosition
       )
 
-      const cacheKey = generateCacheKey(imageSrc, {
+      const cacheKey = generateCacheKey(currentBaseImage, {
         x: cropArea.x,
         y: cropArea.y,
         width: cropArea.width,
@@ -168,7 +222,7 @@ function App() {
       }
 
       const similarCached = findSimilarCachedImage(
-        imageSrc,
+        currentBaseImage,
         {
           x: cropArea.x,
           y: cropArea.y,
@@ -198,7 +252,7 @@ function App() {
       })
 
       const enhancedImageData = await geminiService.enhanceImageCrop(
-        imageSrc,
+        currentBaseImage,
         cropArea,
         requestId,
         (progress) => {
@@ -216,12 +270,18 @@ function App() {
           width: cropArea.width,
           height: cropArea.height
         },
-        originalImageSrc: imageSrc,
+        originalImageSrc: currentBaseImage,
         createdAt: Date.now()
       }
 
       setCachedImage(enhancedImage)
+      
+      // Add enhanced image to history and reset zoom
+      addToHistory(enhancedImageData)
       setCurrentDisplayImage(enhancedImageData)
+      setZoomLevel(1)
+      setPanPosition({ x: 0, y: 0 })
+      
       setEnhancementState({
         isProcessing: false,
         error: null,
@@ -234,13 +294,13 @@ function App() {
       console.error('Enhancement failed:', error)
       setEnhancementState({
         isProcessing: false,
-        error: error instanceof Error ? error.message : 'Enhancement failed',
+        error: null,
         progress: 0,
         lastProcessedZoom: 0
       })
       setCurrentRequestId(null)
     }
-  }, [imageSrc, panPosition, currentDisplayImage, enhancementState.isProcessing, getCachedImage, findSimilarCachedImage, setCachedImage])
+  }, [getCurrentBaseImage, panPosition, currentDisplayImage, enhancementState.isProcessing, getCachedImage, findSimilarCachedImage, setCachedImage, addToHistory])
 
   const handleZoomChange = useCallback((newZoomLevel: number) => {
     if (enhancementTimeoutRef.current) {
@@ -277,10 +337,19 @@ function App() {
   }, [currentRequestId])
 
   useEffect(() => {
-    if (imageSrc && !currentDisplayImage) {
-      setCurrentDisplayImage(imageSrc)
+    const currentBase = getCurrentBaseImage()
+    if (currentBase && !currentDisplayImage) {
+      setCurrentDisplayImage(currentBase)
     }
-  }, [imageSrc, currentDisplayImage])
+  }, [getCurrentBaseImage, currentDisplayImage])
+
+  // Update display image when history index changes
+  useEffect(() => {
+    const currentBase = getCurrentBaseImage()
+    if (currentBase) {
+      setCurrentDisplayImage(currentBase)
+    }
+  }, [currentHistoryIndex, getCurrentBaseImage])
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
@@ -295,7 +364,7 @@ function App() {
 
   return (
     <div className="app">
-      {!imageSrc ? (
+      {!originalImageSrc ? (
         <div className="home-page">
           <h1 className="main-title">Zoom endlessly in to your images</h1>
           <p className="subtitle">Upload an image to start exploring with infinite zoom and AI analysis</p>
@@ -329,8 +398,10 @@ function App() {
             <h1>🍌 Nano Banana Telescope 🔭</h1>
             <button 
               onClick={() => {
-                setImageSrc('')
+                setOriginalImageSrc('')
                 setCurrentDisplayImage('')
+                setImageHistory([])
+                setCurrentHistoryIndex(-1)
                 setZoomLevel(1)
                 setPanPosition({ x: 0, y: 0 })
                 clearCache()
@@ -367,6 +438,31 @@ function App() {
                     Reset
                   </button>
                 </div>
+                
+                {imageHistory.length > 0 && (
+                  <div className="history-controls">
+                    <button 
+                      onClick={goToPreviousImage} 
+                      className="history-button" 
+                      disabled={currentHistoryIndex <= -1}
+                      title="Go to previous image"
+                    >
+                      ← Previous
+                    </button>
+                    <span className="history-info">
+                      {currentHistoryIndex === -1 ? 'Original' : `Enhanced ${currentHistoryIndex + 1}`}
+                      {imageHistory.length > 0 && ` / ${imageHistory.length} levels`}
+                    </span>
+                    <button 
+                      onClick={goToNextImage} 
+                      className="history-button" 
+                      disabled={currentHistoryIndex >= imageHistory.length - 1}
+                      title="Go to next image"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
               </div>
               
               <div 
@@ -388,7 +484,7 @@ function App() {
                 >
                   <img
                     ref={imageRef}
-                    src={currentDisplayImage || imageSrc}
+                    src={currentDisplayImage || getCurrentBaseImage()}
                     alt="Zoom view"
                     className="zoom-image"
                     draggable={false}

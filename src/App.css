@@ -152,8 +152,8 @@
 
 .zoom-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
@@ -161,12 +161,54 @@
   margin: 0;
   color: #3b82f6;
   font-size: 1.2rem;
+  text-align: center;
 }
 
 .zoom-controls {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  justify-content: center;
+}
+
+.history-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+  padding: 0.5rem;
+  background: rgba(55, 65, 81, 0.5);
+  border-radius: 8px;
+}
+
+.history-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.history-button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.history-button:disabled {
+  background: #6b7280;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.history-info {
+  font-weight: 600;
+  color: #e5e7eb;
+  text-align: center;
+  min-width: 150px;
+  font-size: 0.9rem;
 }
 
 .zoom-button {
@@ -330,12 +372,21 @@
   }
   
   .zoom-header {
-    flex-direction: column;
     gap: 1rem;
-    align-items: stretch;
   }
   
   .zoom-controls {
     justify-content: center;
+  }
+  
+  .history-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+  
+  .history-info {
+    min-width: auto;
+    text-align: center;
   }
 }
