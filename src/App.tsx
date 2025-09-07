@@ -1,5 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import './App.css'
+import { LoadingOverlay } from './components/LoadingOverlay'
+import { useImageCache } from './hooks/useImageCache'
+import { geminiService } from './services/geminiService'
+import { shouldEnhanceImage, getVisibleImageBounds, generateCacheKey } from './utils/viewport'
+import type { EnhancedImage, EnhancementState } from './types/enhancement'
 
 function App() {
   const [imageSrc, setImageSrc] = useState<string>('')
@@ -8,13 +13,35 @@ function App() {
   const [panPosition, setPanPosition] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
+  const [currentDisplayImage, setCurrentDisplayImage] = useState<string>('')
+  const [enhancementState, setEnhancementState] = useState<EnhancementState>({
+    isProcessing: false,
+    error: null,
+    progress: 0,
+    lastProcessedZoom: 0
+  })
+  const [currentRequestId, setCurrentRequestId] = useState<string | null>(null)
+  
   const fileInputRef = useRef<HTMLInputElement>(null)
   const zoomContainerRef = useRef<HTMLDivElement>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
+  const enhancementTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  const { getCachedImage, setCachedImage, findSimilarCachedImage, clearCache } = useImageCache(20)
 
   const handleImageUpload = (file: File) => {
     const reader = new FileReader()
     reader.addEventListener('load', () => {
-      setImageSrc(reader.result?.toString() || '')
+      const newImageSrc = reader.result?.toString() || ''
+      setImageSrc(newImageSrc)
+      setCurrentDisplayImage(newImageSrc)
+      clearCache()
+      setEnhancementState({
+        isProcessing: false,
+        error: null,
+        progress: 0,
+        lastProcessedZoom: 0
+      })
     })
     reader.readAsDataURL(file)
   }
@@ -54,16 +81,35 @@ function App() {
   }
 
   const handleZoomIn = () => {
-    setZoomLevel(prev => Math.min(prev * 1.5, 10))
+    setZoomLevel(prev => {
+      const newZoom = Math.min(prev * 1.5, 10)
+      handleZoomChange(newZoom)
+      return newZoom
+    })
   }
 
   const handleZoomOut = () => {
-    setZoomLevel(prev => Math.max(prev / 1.5, 0.1))
+    setZoomLevel(prev => {
+      const newZoom = Math.max(prev / 1.5, 0.1)
+      handleZoomChange(newZoom)
+      return newZoom
+    })
   }
 
   const handleResetZoom = () => {
     setZoomLevel(1)
     setPanPosition({ x: 0, y: 0 })
+    setCurrentDisplayImage(imageSrc)
+    if (currentRequestId) {
+      geminiService.cancelRequest(currentRequestId)
+      setCurrentRequestId(null)
+    }
+    setEnhancementState({
+      isProcessing: false,
+      error: null,
+      progress: 0,
+      lastProcessedZoom: 0
+    })
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -92,10 +138,158 @@ function App() {
     setIsPanning(false)
   }
 
+  const checkAndEnhanceImage = useCallback(async (zoomLevel: number) => {
+    if (!shouldEnhanceImage(zoomLevel) || !imageSrc || !imageRef.current || !zoomContainerRef.current) {
+      if (zoomLevel <= 3.0 && currentDisplayImage !== imageSrc) {
+        setCurrentDisplayImage(imageSrc)
+      }
+      return
+    }
+
+    try {
+      const cropArea = getVisibleImageBounds(
+        zoomContainerRef.current,
+        imageRef.current,
+        zoomLevel,
+        panPosition
+      )
+
+      const cacheKey = generateCacheKey(imageSrc, {
+        x: cropArea.x,
+        y: cropArea.y,
+        width: cropArea.width,
+        height: cropArea.height
+      }, zoomLevel)
+
+      const cachedImage = getCachedImage(cacheKey)
+      if (cachedImage) {
+        setCurrentDisplayImage(cachedImage.data)
+        return
+      }
+
+      const similarCached = findSimilarCachedImage(
+        imageSrc,
+        {
+          x: cropArea.x,
+          y: cropArea.y,
+          width: cropArea.width,
+          height: cropArea.height
+        },
+        zoomLevel,
+        100
+      )
+
+      if (similarCached) {
+        setCurrentDisplayImage(similarCached.data)
+        return
+      }
+
+      if (enhancementState.isProcessing) {
+        return
+      }
+
+      const requestId = geminiService.generateRequestId()
+      setCurrentRequestId(requestId)
+      setEnhancementState({
+        isProcessing: true,
+        error: null,
+        progress: 0,
+        lastProcessedZoom: zoomLevel
+      })
+
+      const enhancedImageData = await geminiService.enhanceImageCrop(
+        imageSrc,
+        cropArea,
+        requestId,
+        (progress) => {
+          setEnhancementState(prev => ({ ...prev, progress }))
+        }
+      )
+
+      const enhancedImage: EnhancedImage = {
+        id: cacheKey,
+        data: enhancedImageData,
+        zoomLevel,
+        viewport: {
+          x: cropArea.x,
+          y: cropArea.y,
+          width: cropArea.width,
+          height: cropArea.height
+        },
+        originalImageSrc: imageSrc,
+        createdAt: Date.now()
+      }
+
+      setCachedImage(enhancedImage)
+      setCurrentDisplayImage(enhancedImageData)
+      setEnhancementState({
+        isProcessing: false,
+        error: null,
+        progress: 100,
+        lastProcessedZoom: zoomLevel
+      })
+      setCurrentRequestId(null)
+
+    } catch (error) {
+      console.error('Enhancement failed:', error)
+      setEnhancementState({
+        isProcessing: false,
+        error: error instanceof Error ? error.message : 'Enhancement failed',
+        progress: 0,
+        lastProcessedZoom: 0
+      })
+      setCurrentRequestId(null)
+    }
+  }, [imageSrc, panPosition, currentDisplayImage, enhancementState.isProcessing, getCachedImage, findSimilarCachedImage, setCachedImage])
+
+  const handleZoomChange = useCallback((newZoomLevel: number) => {
+    if (enhancementTimeoutRef.current) {
+      clearTimeout(enhancementTimeoutRef.current)
+    }
+
+    enhancementTimeoutRef.current = setTimeout(() => {
+      checkAndEnhanceImage(newZoomLevel)
+    }, 500)
+  }, [checkAndEnhanceImage])
+
+  const handleCancelEnhancement = useCallback(() => {
+    if (currentRequestId) {
+      geminiService.cancelRequest(currentRequestId)
+      setCurrentRequestId(null)
+    }
+    setEnhancementState({
+      isProcessing: false,
+      error: null,
+      progress: 0,
+      lastProcessedZoom: 0
+    })
+  }, [currentRequestId])
+
+  useEffect(() => {
+    return () => {
+      if (enhancementTimeoutRef.current) {
+        clearTimeout(enhancementTimeoutRef.current)
+      }
+      if (currentRequestId) {
+        geminiService.cancelRequest(currentRequestId)
+      }
+    }
+  }, [currentRequestId])
+
+  useEffect(() => {
+    if (imageSrc && !currentDisplayImage) {
+      setCurrentDisplayImage(imageSrc)
+    }
+  }, [imageSrc, currentDisplayImage])
+
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
     const delta = e.deltaY > 0 ? 0.9 : 1.1
-    setZoomLevel(prev => Math.max(0.1, Math.min(prev * delta, 10)))
+    setZoomLevel(prev => {
+      const newZoom = Math.max(0.1, Math.min(prev * delta, 10))
+      handleZoomChange(newZoom)
+      return newZoom
+    })
   }
 
 
@@ -134,7 +328,23 @@ function App() {
           <div className="header">
             <h1>🍌 Nano Banana Telescope 🔭</h1>
             <button 
-              onClick={() => {setImageSrc(''); setZoomLevel(1); setPanPosition({ x: 0, y: 0 });}}
+              onClick={() => {
+                setImageSrc('')
+                setCurrentDisplayImage('')
+                setZoomLevel(1)
+                setPanPosition({ x: 0, y: 0 })
+                clearCache()
+                if (currentRequestId) {
+                  geminiService.cancelRequest(currentRequestId)
+                  setCurrentRequestId(null)
+                }
+                setEnhancementState({
+                  isProcessing: false,
+                  error: null,
+                  progress: 0,
+                  lastProcessedZoom: 0
+                })
+              }}
               className="back-button"
             >
               ← Back to Upload
@@ -167,6 +377,7 @@ function App() {
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
                 onWheel={handleWheel}
+                style={{ position: 'relative' }}
               >
                 <div 
                   className="zoom-image-wrapper"
@@ -176,16 +387,33 @@ function App() {
                   }}
                 >
                   <img
-                    src={imageSrc}
+                    ref={imageRef}
+                    src={currentDisplayImage || imageSrc}
                     alt="Zoom view"
                     className="zoom-image"
                     draggable={false}
                   />
                 </div>
+                <LoadingOverlay
+                  isVisible={enhancementState.isProcessing}
+                  progress={enhancementState.progress}
+                  message="Enhancing image with AI..."
+                  onCancel={handleCancelEnhancement}
+                />
               </div>
               
               <div className="zoom-info">
                 <p>Use mouse wheel to zoom, drag to pan when zoomed in</p>
+                {zoomLevel > 3.0 && (
+                  <p className="enhancement-info">
+                    🤖 AI enhancement active at {Math.round(zoomLevel * 100)}% zoom
+                  </p>
+                )}
+                {enhancementState.error && (
+                  <p className="error-info">
+                    ⚠️ Enhancement failed: {enhancementState.error}
+                  </p>
+                )}
               </div>
             </div>
           </div>

@@ -252,6 +252,18 @@
   margin: 0;
 }
 
+.enhancement-info {
+  color: #10b981 !important;
+  font-weight: 500;
+  margin-top: 0.5rem !important;
+}
+
+.error-info {
+  color: #ef4444 !important;
+  font-weight: 500;
+  margin-top: 0.5rem !important;
+}
+
 .crop-image {
   max-width: 100%;
   max-height: 500px;
