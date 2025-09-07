@@ -549,7 +549,7 @@ function App() {
                     ref={imageRef}
                     src={currentDisplayImage || getCurrentBaseImage()}
                     alt="Zoom view"
-                    className="zoom-image"
+                    className={`zoom-image ${enhancementState.isProcessing ? 'blurred' : ''}`}
                     draggable={false}
                   />
                 </div>

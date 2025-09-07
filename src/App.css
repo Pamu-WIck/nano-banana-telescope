@@ -316,6 +316,11 @@
   filter: blur(1px);
 }
 
+.zoom-image.blurred {
+  filter: blur(4px);
+  transition: filter 0.3s ease-in-out;
+}
+
 .zoom-info {
   text-align: center;
   color: #94a3b8;

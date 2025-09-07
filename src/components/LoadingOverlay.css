@@ -1,149 +1,107 @@
-.loading-overlay {
+.telescope-status-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
+  pointer-events: none;
 }
 
-.loading-content {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
+.telescope-status-content {
   text-align: center;
   max-width: 320px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  animation: fadeInScale 0.3s ease-out;
+  animation: fadeInUp 0.5s ease-out;
+  pointer-events: all;
 }
 
-@keyframes fadeInScale {
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: scale(0.9);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0);
   }
 }
 
-.loading-spinner {
-  margin-bottom: 1.5rem;
-}
-
-.spinner-ring {
-  display: inline-block;
-  position: relative;
-  width: 64px;
-  height: 64px;
-}
-
-.spinner-ring div {
-  box-sizing: border-box;
-  display: block;
-  position: absolute;
-  width: 48px;
-  height: 48px;
-  margin: 8px;
-  border: 4px solid #3b82f6;
-  border-radius: 50%;
-  animation: spinner-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-  border-color: #3b82f6 transparent transparent transparent;
-}
-
-.spinner-ring div:nth-child(1) {
-  animation-delay: -0.45s;
-}
-
-.spinner-ring div:nth-child(2) {
-  animation-delay: -0.3s;
-}
-
-.spinner-ring div:nth-child(3) {
-  animation-delay: -0.15s;
-}
-
-@keyframes spinner-ring {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-text h3 {
+.telescope-message h3 {
   margin: 0 0 0.5rem 0;
-  color: #1f2937;
-  font-size: 1.2rem;
-  font-weight: 600;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+  opacity: 0.8;
 }
 
-.loading-text p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 0.9rem;
+.dots {
+  animation: dots 1.5s ease-in-out infinite;
 }
 
-.progress-container {
-  margin: 1.5rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-  animation: progressPulse 2s ease-in-out infinite;
-}
-
-@keyframes progressPulse {
-  0%, 100% {
-    opacity: 1;
+@keyframes dots {
+  0%, 20% {
+    opacity: 0;
   }
   50% {
-    opacity: 0.8;
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 
-.progress-text {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #374151;
-  min-width: 35px;
+.telescope-message p {
+  margin: 0 0 1rem 0;
+  color: #e5e7eb;
+  font-size: 1rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
 
-.cancel-button {
-  margin-top: 1rem;
+@keyframes pulseGlow {
+  0%, 100% {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 20px rgba(59, 130, 246, 0.6);
+  }
+}
+
+.progress-indicator {
+  background: rgba(0, 0, 0, 0.6);
   padding: 0.5rem 1rem;
-  background: transparent;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  color: #6b7280;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  border-radius: 20px;
+  border: 2px solid rgba(59, 130, 246, 0.5);
+  backdrop-filter: blur(8px);
 }
 
-.cancel-button:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
-  color: #374151;
+.progress-indicator span {
+  color: #3b82f6;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.cancel-focusing-button {
+  margin-top: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.cancel-focusing-button:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
 }

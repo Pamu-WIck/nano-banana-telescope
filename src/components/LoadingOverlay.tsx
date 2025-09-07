@@ -17,37 +17,11 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="loading-overlay">
-      <div className="loading-content">
-        <div className="loading-spinner">
-          <div className="spinner-ring">
-            <div></div>
-            <div></div>
-            <div></div>
-            <div></div>
-          </div>
+    <div className="telescope-status-overlay">
+      <div className="telescope-status-content">
+        <div className="telescope-message">
+          <h3>{message}<span className="dots">...</span></h3>
         </div>
-        
-        <div className="loading-text">
-          <h3>{message}</h3>
-          <p>Calibrating deep space optics...</p>
-        </div>
-        
-        <div className="progress-container">
-          <div className="progress-bar">
-            <div 
-              className="progress-fill" 
-              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-            ></div>
-          </div>
-          <span className="progress-text">{Math.round(progress)}%</span>
-        </div>
-        
-        {onCancel && (
-          <button className="cancel-button" onClick={onCancel}>
-            Cancel Focusing
-          </button>
-        )}
       </div>
     </div>
   );

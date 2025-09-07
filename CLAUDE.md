@@ -124,3 +124,4 @@ The Gemini API key is configured via environment variables:
 - **Zoom Reset Problems**: Verify `setZoomLevel(1)` is called after enhancement
 - add updates to memery
 - add to memeory
+- add to memory
