@@ -1,22 +1,13 @@
 import { useState, useRef } from 'react'
-import ReactCrop from 'react-image-crop'
-import type { Crop, PixelCrop } from 'react-image-crop'
-import { GoogleGenerativeAI } from '@google/generative-ai'
-import 'react-image-crop/dist/ReactCrop.css'
 import './App.css'
 
 function App() {
   const [imageSrc, setImageSrc] = useState<string>('')
-  const [crop, setCrop] = useState<Crop>()
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop>()
-  const [analysis, setAnalysis] = useState<string>('')
-  const [isLoading, setIsLoading] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [panPosition, setPanPosition] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
-  const imgRef = useRef<HTMLImageElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const zoomContainerRef = useRef<HTMLDivElement>(null)
 
@@ -24,7 +15,6 @@ function App() {
     const reader = new FileReader()
     reader.addEventListener('load', () => {
       setImageSrc(reader.result?.toString() || '')
-      setAnalysis('')
     })
     reader.readAsDataURL(file)
   }
@@ -108,60 +98,6 @@ function App() {
     setZoomLevel(prev => Math.max(0.1, Math.min(prev * delta, 10)))
   }
 
-  const analyzeImage = async () => {
-    if (!completedCrop || !imgRef.current) return
-
-    setIsLoading(true)
-    try {
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      const image = imgRef.current
-      canvas.width = completedCrop.width
-      canvas.height = completedCrop.height
-
-      ctx.drawImage(
-        image,
-        completedCrop.x,
-        completedCrop.y,
-        completedCrop.width,
-        completedCrop.height,
-        0,
-        0,
-        completedCrop.width,
-        completedCrop.height
-      )
-
-      canvas.toBlob(async (blob) => {
-        if (!blob) return
-        
-        const arrayBuffer = await blob.arrayBuffer()
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
-
-        // Note: You'll need to add your API key here
-        const genAI = new GoogleGenerativeAI('YOUR_API_KEY')
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro-vision' })
-
-        const result = await model.generateContent([
-          'Analyze this cropped image and describe what you see in detail.',
-          {
-            inlineData: {
-              data: base64,
-              mimeType: 'image/png'
-            }
-          }
-        ])
-
-        const response = await result.response
-        setAnalysis(response.text())
-      }, 'image/png')
-    } catch (error) {
-      console.error('Error analyzing image:', error)
-      setAnalysis('Error analyzing image. Please check your API key and try again.')
-    }
-    setIsLoading(false)
-  }
 
   return (
     <div className="app">
@@ -198,7 +134,7 @@ function App() {
           <div className="header">
             <h1>🍌 Nano Banana Telescope 🔭</h1>
             <button 
-              onClick={() => {setImageSrc(''); setAnalysis(''); setCrop(undefined); setCompletedCrop(undefined); setZoomLevel(1); setPanPosition({ x: 0, y: 0 });}}
+              onClick={() => {setImageSrc(''); setZoomLevel(1); setPanPosition({ x: 0, y: 0 });}}
               className="back-button"
             >
               ← Back to Upload
@@ -206,39 +142,6 @@ function App() {
           </div>
 
           <div className="main-content">
-            <div className="crop-section">
-              <h3>Crop & Analyze</h3>
-              <ReactCrop
-                crop={crop}
-                onChange={(c) => setCrop(c)}
-                onComplete={(c) => setCompletedCrop(c)}
-              >
-                <img
-                  ref={imgRef}
-                  src={imageSrc}
-                  alt="Upload"
-                  className="crop-image"
-                />
-              </ReactCrop>
-              
-              {completedCrop && (
-                <button 
-                  onClick={analyzeImage}
-                  disabled={isLoading}
-                  className="analyze-button"
-                >
-                  {isLoading ? '🔄 Analyzing...' : '🔍 Analyze Cropped Area'}
-                </button>
-              )}
-
-              {analysis && (
-                <div className="analysis-section">
-                  <h3>🤖 AI Analysis:</h3>
-                  <p>{analysis}</p>
-                </div>
-              )}
-            </div>
-
             <div className="zoom-section">
               <div className="zoom-header">
                 <h3>Zoom Explorer</h3>
