@@ -125,3 +125,4 @@ The Gemini API key is configured via environment variables:
 - add updates to memery
 - add to memeory
 - add to memory
+- add to memeory

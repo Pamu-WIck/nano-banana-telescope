@@ -12,6 +12,23 @@ interface ImageHistoryItem {
   timestamp: number
 }
 
+interface AspectRatio {
+  label: string
+  value: string
+  width: number
+  height: number
+}
+
+const aspectRatios: AspectRatio[] = [
+  { label: '16:9', value: '16 / 9', width: 16, height: 9 },
+  { label: '4:3', value: '4 / 3', width: 4, height: 3 },
+  { label: '1:1', value: '1 / 1', width: 1, height: 1 },
+  { label: '21:9', value: '21 / 9', width: 21, height: 9 },
+  { label: '9:16', value: '9 / 16', width: 9, height: 16 },
+  { label: '3:2', value: '3 / 2', width: 3, height: 2 },
+  { label: '2:3', value: '2 / 3', width: 2, height: 3 },
+]
+
 function App() {
   const [originalImageSrc, setOriginalImageSrc] = useState<string>('')
   const [imageHistory, setImageHistory] = useState<ImageHistoryItem[]>([])
@@ -30,6 +47,7 @@ function App() {
   })
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null)
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [selectedRatio, setSelectedRatio] = useState<AspectRatio>(aspectRatios[1]) // Default to 4:3
   
   const fileInputRef = useRef<HTMLInputElement>(null)
   const zoomContainerRef = useRef<HTMLDivElement>(null)
@@ -71,85 +89,22 @@ function App() {
     setCurrentHistoryIndex(imageHistory.length)
   }, [imageHistory.length])
 
-  // Image transition with zoom effect
+  // Simple image switching without effects
   const performLensTransition = useCallback(async (newIndex: number, direction: 'next' | 'previous') => {
     if (!wrapperRef.current || !imageRef.current) return
     
     setIsTransitioning(true)
     
-    // Add transition classes for smooth animation
-    wrapperRef.current.classList.add('smooth-zoom')
+    // Simply switch to the new image at 100% zoom
+    setCurrentHistoryIndex(newIndex)
+    setPanPosition({ x: 0, y: 0 })
+    setZoomLevel(1.0)
     
-    if (direction === 'previous') {
-      // PREVIOUS: Instantly change to previous image at 300% zoom, then animate zoom out to 100%
-      
-      // Remove smooth zoom class for instant zoom change
-      wrapperRef.current?.classList.remove('smooth-zoom')
-      
-      // Switch to previous image and instantly set to 300% zoom
-      setCurrentHistoryIndex(newIndex)
-      setPanPosition({ x: 0, y: 0 })
-      setZoomLevel(3.0) // Start at 300% zoom instantly
-      
-      // Small delay to ensure image loads and zoom is applied
-      await new Promise(resolve => setTimeout(resolve, 50))
-      
-      // Add smooth zoom class back for animation
-      wrapperRef.current?.classList.add('smooth-zoom')
-      
-      // Animate zoom out to 100%
-      const steps = 30
-      const startZoom = 3.0
-      const targetZoom = 1.0
-      const zoomStep = (targetZoom - startZoom) / steps
-      
-      for (let i = 0; i < steps; i++) {
-        await new Promise(resolve => setTimeout(resolve, 20))
-        setZoomLevel(prev => {
-          const newZoom = prev + zoomStep
-          return Math.max(targetZoom, newZoom)
-        })
-      }
-      
-      setZoomLevel(targetZoom)
-      
-    } else if (direction === 'next') {
-      // NEXT: Animate current image zoom in to 300%, then switch to next image at 100%
-      setPanPosition({ x: 0, y: 0 })
-      
-      // Animate zoom in to 300%
-      const steps = 30
-      const startZoom = zoomLevel
-      const targetZoom = 3.0
-      const zoomStep = (targetZoom - startZoom) / steps
-      
-      for (let i = 0; i < steps; i++) {
-        await new Promise(resolve => setTimeout(resolve, 20))
-        setZoomLevel(prev => {
-          const newZoom = prev + zoomStep
-          return Math.min(targetZoom, newZoom)
-        })
-      }
-      
-      setZoomLevel(targetZoom)
-      
-      // Brief pause at maximum zoom
-      await new Promise(resolve => setTimeout(resolve, 200))
-      
-      // Remove smooth zoom class before switching for instant change
-      wrapperRef.current?.classList.remove('smooth-zoom')
-      
-      // Switch to next image at 100% zoom (stable, instant change)
-      setCurrentHistoryIndex(newIndex)
-      setZoomLevel(1.0)
-    }
-    
-    // Clean up transition classes
+    // Small delay to prevent rapid clicking
     setTimeout(() => {
-      wrapperRef.current?.classList.remove('smooth-zoom')
       setIsTransitioning(false)
-    }, 200)
-  }, [zoomLevel])
+    }, 100)
+  }, [])
   
   // Navigation functions
   const goToPreviousImage = useCallback(() => {
@@ -537,6 +492,22 @@ function App() {
                   </button>
                 </div>
                 
+                <div className="ratio-controls">
+                  <span className="ratio-label">Aspect Ratio:</span>
+                  <div className="ratio-buttons">
+                    {aspectRatios.map((ratio) => (
+                      <button
+                        key={ratio.label}
+                        onClick={() => setSelectedRatio(ratio)}
+                        className={`ratio-button ${selectedRatio.label === ratio.label ? 'active' : ''}`}
+                        title={`Set aspect ratio to ${ratio.label}`}
+                      >
+                        {ratio.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
                 {imageHistory.length > 0 && (
                   <div className="history-controls">
                     <button 
@@ -571,7 +542,10 @@ function App() {
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
                 onWheel={handleWheel}
-                style={{ position: 'relative' }}
+                style={{ 
+                  position: 'relative',
+                  aspectRatio: selectedRatio.value
+                }}
               >
                 <div 
                   ref={wrapperRef}
